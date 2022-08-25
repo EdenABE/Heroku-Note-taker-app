@@ -44,4 +44,3 @@ Enter your note's title and text into the appropriate fields in the right-hand p
 
 Click the Save icon in the navigation bar in the top right of the screen
 ```
-
