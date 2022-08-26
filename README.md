@@ -29,7 +29,7 @@ Heroku
 
 ```
 Github repository: https://github.com/EdenABE/Heroku-Note-taker-app
-Deployed application: https://edenabe.github.io/Heroku-Note-taker-app/ 
+Deployed application: https://take-note7.herokuapp.com/  
 ```
 ## Screenshots 
 ![](public/assets/first.png)
