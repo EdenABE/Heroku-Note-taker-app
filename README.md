@@ -28,12 +28,11 @@ Heroku
 ## Links
 
 ```
-Github repository
-Deployed application 
+Github repository: https://github.com/EdenABE/Heroku-Note-taker-app
+Deployed application: https://edenabe.github.io/Heroku-Note-taker-app/ 
 ```
 ## Screenshots 
-
-
+![](public/assets/first.png)
 ## Usage
 ```
 Open the website.
