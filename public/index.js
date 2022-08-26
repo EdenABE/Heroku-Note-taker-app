@@ -1,177 +1,143 @@
-let noteTitle = document.getElementsByClassName('note-title').value;
+var $noteTitle = $(".note-title");
+var $noteText = $(".note-textarea");
+var $saveNoteBtn = $(".save-note");
+var $newNoteBtn = $(".new-note");
+var $noteList = $(".list-container .list-group");
 
-let noteText = document.getElementsByClassName('note-textarea').value.trim();
+// activeNote is used to keep track of the note in the textarea
+var activeNote = {};
 
-let noteList = document.getElementsByClassName('list-container.list-group').value;
-
-const saveNoteBtn = document.getElementById('saveNote');
-const newNoteBtn = document.getElementById('newNote');
-
-saveNoteBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  window.location.href = '/notes';
-});
-
-newNoteBtn.addEventListener('click', (k) => {
-  k.preventDefault();
-  window.location.href = '/';
-});
-
-const createCard = (note) => {
-  // Create card
-  const cardEl = document.createElement('div');
-  cardEl.classList.add('card', 'mb-3', 'm-3');
-  cardEl.setAttribute('key', note);
-
-  // Create card header
-  const cardHeaderEl = document.createElement('h4');
-  cardHeaderEl.classList.add(
-    'card-header',
-    'bg-primary',
-    'text-light',
-    'p-2',
-    'm-0'
-  );
-  cardHeaderEl.innerHTML = `${tip.username} </br>`;
-
-  // Create card body
-  const cardBodyEl = document.createElement('div');
-  cardBodyEl.classList.add('card-body', 'bg-light', 'p-2');
-  cardBodyEl.innerHTML = `<p>${tip.tip}</p>`;
-
-  // Append the header and body to the card element
-  cardEl.appendChild(cardHeaderEl);
-  cardEl.appendChild(cardBodyEl);
-
-  // Append the card element to the tips container in the DOM
-  tipsContainer.appendChild(cardEl);
-};
-
-// Get a list of existing tips from the server
-const getTips = () =>
-  fetch('/api/tips', {
-    method: 'GET', // or 'PUT'
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    // body: JSON.stringify(data),
-  })
-    .then((response) => response.json())
-    .then((data) => data)
-    .catch((error) => {
-      console.error('Error:', error);
-    });
-
-// Post a new tip to the page
-const postTip = (tip) =>
-  fetch('/api/tips', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(tip),
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      alert(data);
-      createCard(tip);
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-    });
-
-// When the page loads, get all the tips
-getTips().then((data) => data.forEach((tip) => createCard(tip)));
-
-// Function to validate the tips that were submitted
-const validateTip = (newTip) => {
-  const { username, topic, tip } = newTip;
-
-  // Object to hold our error messages until we are ready to return
-  const errorState = {
-    username: '',
-    tip: '',
-    topic: '',
-  };
-
-  // Bool value if the username is valid
-  const utest = username.length >= 4;
-  if (!utest) {
-    errorState.username = 'Invalid username!';
-  }
-
-  // Bool value to see if the tip being added is at least 15 characters long
-  const tipContentCheck = tip.length > 15;
-  if (!tipContentCheck) {
-    errorState.tip = 'Tip must be at least 15 characters';
-  }
-
-  // Bool value to see if the topic is either UX or UI
-  const topicCheck = topic.includes('UX' || 'UI');
-  if (!topicCheck) {
-    errorState.topic = 'Topic not relevant to UX or UI';
-  }
-
-  const result = {
-    isValid: !!(utest && tipContentCheck && topicCheck),
-    errors: errorState,
-  };
-
-  // Return result object with a isValid boolean and an errors object for any errors that may exist
-  return result;
-};
-
-// Helper function to deal with errors that exist in the result
-
-const showErrors = (errorObj) => {
-  const errors = Object.values(errorObj);
-  errors.forEach((error) => {
-    if (error.length > 0) {
-      alert(error);
-    }
+// A function for getting all notes from the db
+var getNotes = function () {
+  return $.ajax({
+    url: "/api/notes",
+    method: "GET"
   });
 };
 
-// Helper function to send a POST request to the diagnostics route
-const submitDiagnostics = (submissionObj) => {
-  fetch('/api/diagnostics', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(submissionObj),
-  })
-    .then((response) => response.json())
-    .then(() => showErrors(submissionObj.errors))
-    .catch((error) => {
-      console.error('Error:', error);
-    });
+// A function for saving a note to the db
+var saveNote = function (note) {
+  return $.ajax({
+    url: "/api/notes",
+    data: note,
+    method: "POST"
+  });
 };
 
-// Function to handle when a user submits the feedback form
-const handleFormSubmit = (e) => {
-  e.preventDefault();
-  console.log('Form submit invoked');
+// A function for deleting a note from the db
+var deleteNote = function (id) {
+  return $.ajax({
+    url: "api/notes/" + id,
+    method: "DELETE"
+  });
+};
 
-  // Get the value of the tip and save it to a variable
-  const tipContent = document.getElementById('tipText').value;
+// If there is an activeNote, display it, otherwise render empty inputs
+var renderActiveNote = function () {
+  $saveNoteBtn.hide();
 
-  // get the value of the username and save it to a variable
-  const tipUsername = document.getElementById('tipUsername').value.trim();
+  if (activeNote.id) {
+    $noteTitle.attr("readonly", true);
+    $noteText.attr("readonly", true);
+    $noteTitle.val(activeNote.title);
+    $noteText.val(activeNote.text);
+  } else {
+    $noteTitle.attr("readonly", false);
+    $noteText.attr("readonly", false);
+    $noteTitle.val("");
+    $noteText.val("");
+  }
+};
 
-  // Create an object with the tip and username
-  const newTip = {
-    username: tipUsername,
-    topic: 'UX',
-    tip: tipContent,
+// Get the note data from the inputs, save it to the db and update the view
+var handleNoteSave = function () {
+  var newNote = {
+    title: $noteTitle.val(),
+    text: $noteText.val()
   };
 
-  // Run the tip object through our validator function
-  const submission = validateTip(newTip);
-
-  // If the submission is valid, post the tip. Otherwise, handle the errors.
-  return submission.isValid ? postTip(newTip) : submitDiagnostics(submission);
+  saveNote(newNote).then(function (data) {
+    getAndRenderNotes();
+    renderActiveNote();
+  });
 };
 
-// Listen for when the form is submitted
-tipForm.addEventListener('submit', handleFormSubmit);
+// Delete the clicked note
+var handleNoteDelete = function (event) {
+  // prevents the click listener for the list from being called when the button inside of it is clicked
+  event.stopPropagation();
+
+  var note = $(this)
+    .parent(".list-group-item")
+    .data();
+
+  if (activeNote.id === note.id) {
+    activeNote = {};
+  }
+
+  deleteNote(note.id).then(function () {
+    getAndRenderNotes();
+    renderActiveNote();
+  });
+};
+
+// Sets the activeNote and displays it
+var handleNoteView = function () {
+  activeNote = $(this).data();
+  renderActiveNote();
+};
+
+// Sets the activeNote to and empty object and allows the user to enter a new note
+var handleNewNoteView = function () {
+  activeNote = {};
+  renderActiveNote();
+};
+
+// If a note's title or text are empty, hide the save button
+// Or else show it
+var handleRenderSaveBtn = function () {
+  if (!$noteTitle.val().trim() || !$noteText.val().trim()) {
+    $saveNoteBtn.hide();
+  } else {
+    $saveNoteBtn.show();
+  }
+};
+
+// Render's the list of note titles
+var renderNoteList = function (notes) {
+  $noteList.empty();
+
+  var noteListItems = [];
+
+  for (var i = 0; i < notes.length; i++) {
+    var note = notes[i];
+
+    var $li = $("<li class='list-group-item'>").data(note);
+    var $span = $("<span>").text(note.title);
+    var $delBtn = $(
+      "<i class='fas fa-trash-alt float-right text-danger delete-note'>"
+    );
+
+    $li.append($span, $delBtn);
+    noteListItems.push($li);
+  }
+
+  $noteList.append(noteListItems);
+};
+
+// Gets notes from the db and renders them to the sidebar
+var getAndRenderNotes = function () {
+  return getNotes().then(function (data) {
+    renderNoteList(data);
+  });
+};
+
+$saveNoteBtn.on("click", handleNoteSave);
+$noteList.on("click", ".list-group-item", handleNoteView);
+$newNoteBtn.on("click", handleNewNoteView);
+$noteList.on("click", ".delete-note", handleNoteDelete);
+$noteTitle.on("keyup", handleRenderSaveBtn);
+$noteText.on("keyup", handleRenderSaveBtn);
+
+// Gets and renders the initial list of notes
+getAndRenderNotes();
